@@ -1,0 +1,234 @@
+---
+title: "Hw2_Scott"
+author: "Adrienne Scott"
+date: "March 15, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+sprinter <- read.csv(file = "sprinter.csv", header=TRUE, stringsAsFactors = FALSE)
+```
+
+###Section 1 - Matrix Form 
+
+In R, Create a matrix X comprised of three columns: a column of ones, a column made of the variable year, and a column made up of the variable women.
+
+```{r}
+a <- matrix(1, nrow=42)
+b <- matrix(sprinter$year)
+c <- matrix(sprinter$women)
+X = cbind(a, b, c)
+
+```
+
+Create a matrix y comprised of a single column, made up of the variable finish.
+
+```{r}
+y = matrix(sprinter$finish)
+```
+
+Compute the following using R's matrix commands
+```{r}
+xtran <- t(X)
+xtran
+
+xtranx <- t(X)%*%X
+xtranx
+
+inv <- solve(xtranx)
+inv
+
+b <- inv%*%xtran%*%y
+b
+```
+
+###Section 2 - Fitting a linear model
+
+Using the function lm, run a regression of finish on year and women.
+
+```{r}
+model <- lm(finish ~ year + women, data=sprinter)
+model
+```
+
+Compare the results the calculation you did in Section 1.
+- The output for both the matrix and model are the same: each have an intercept of 34.96 and a slope of -.012 for the variable year and 1.092 for the variable women.
+
+Make a nice plot summarizing this regression. On a single graph, plot the data and the regression line. Make sure the graph is labeled nicely, so that anyone who does not know your variable names could still read it.
+
+```{r}
+ggplot(sprinter, aes(x = year+women, y= finish, color = factor(women)), linetype= women) +
+  geom_point() +
+  stat_smooth(method = "lm", color = "purple") +
+  ggtitle("Olympic Meter Sprint Best Time ") + 
+  labs(y= "Olympic Meter Sprint Best Time in Seconds", x = "Competition Year") + 
+  scale_fill_discrete(name = "women",
+                      labels=c("men","women")) +
+  scale_color_discrete(name = "women",
+                      labels=c("men","women")) +
+  theme_bw()
+
+#2 Separate regression lines: one for men and one for women
+
+ggplot(sprinter, aes(x = year+women, y= finish, color = factor(women)), linetype= women) +
+  geom_point() +
+  stat_smooth(method = "lm") +
+  ggtitle("Olympic Meter Sprint Best Time") + 
+  labs(y= "Olympic Meter Sprint Best Time in Seconds", x = "Competition Year") + 
+  scale_fill_discrete(name = "women",
+                      labels=c("men","women")) +
+  scale_color_discrete(name = "women",
+                      labels=c("men","women")) +
+  theme_bw()
+```
+
+```{r}
+model2 <- lm(sprinter$finish ~ sprinter$year + sprinter$women + sprinter$year*sprinter$women, data=sprinter, x=TRUE)
+model2
+```
+
+```{r}
+ggplot(model2, aes(x = sprinter$year, y = sprinter$finish, 
+                         ymin = 9, ymax = 13,
+                         color = factor(sprinter$women),
+                         fill = factor(sprinter$women))) +
+  geom_line() +
+  geom_point()+
+  labs(title = "Olympic Meter Sprint Best Time",
+       y = "Finishing Time",
+       x = "Year") + 
+  scale_fill_discrete(name = "women",
+                      labels=c("men","women")) +
+  scale_color_discrete(name = "women",
+                      labels=c("men","women")) +
+  theme_bw()
+```
+
+###Section 3  - Predicted Values
+
+Suppose that an Olympics had been held in 2001. Use the predict function to calculate the expected finishing time for men and for women.
+Calculate 95% confidence intervals for the predictions. 
+- Predicted finish times for the 2001 olympics: 10.82 for women and 9.73 for men.
+```{r}
+#95% confidence interval is already the default
+women2001 <- predict(model, newdata = data_frame(year=2001, women=1), interval="confidence", level = 0.95)
+summary(women2001)
+
+men2001 <- predict(model, newdata = data_frame(year=2001, women=0), interval="confidence", level = 0.95)
+summary(men2001)
+
+```
+
+The authors of the Nature article were interested in predicting the finishing times for the 2156 Olympics. Use predict to do so, for both men and women, and report 95% confidence intervals for your results.
+- Predicted finish times for the 2156 olympics: 8.86 for women and 7.77 for men.
+```{r}
+women2156 <- predict(model, newdata = data_frame(year=2156, women=1), interval= "confidence", level = 0.95)
+summary(women2156)
+
+men2156 <- predict(model, newdata = data_frame(year=2156, women=0), interval="confidence", level = 0.95)
+summary(men2156)
+```
+
+Do you trust the model's predictions? Is there reason to trust the 2001 prediction more than the 2156 prediction? Is any assumption of the model being abused or overworked to make this prediction?
+
+- The model's predictions for 2001 are fairly accurate. Although both years are outside of the range of the data set, 2001 is only one year above the range, whereas 2156 is 155 years above the data set. As you move further and further out of the range of the dataset, the predictive power becomes less accurate. The predictions shows that as the years progress, the average finish time will decrease. While this is consistent with the data (see graphs above), the predictions are conditioned on the assumption that this data is generalizable for all Olympic years. The data set only contains a range of 100 years of data and we are trying to predict 155 year outside that range. A potential problem may be that we do not have enough data to support the accuracy of the prediction. 
+
+
+###Section 4 - Looking at data beyond summary statistics
+
+```{r results= 'asis', warning=FALSE, message=FALSE}
+data("anscombe")
+library("tidyverse")
+anscombe2 <- anscombe %>%
+    mutate(obs = row_number()) %>%
+    gather(variable_dataset, value, - obs) %>%
+    separate(variable_dataset, c("variable", "dataset"), sep = 1L) %>%
+    spread(variable, value) %>%
+    arrange(dataset, obs)
+
+```
+For each dataset: calculate the mean and standard deviations of x and y, and correlation between x and y.
+
+Dataset 1
+```{r}
+anscombe_data1 <-filter(anscombe2, anscombe2$data==1)
+mean(anscombe_data1$x)
+mean(anscombe_data1$y)
+sd(anscombe_data1$x)
+sd(anscombe_data1$y)
+cor(anscombe_data1$x, anscombe_data1$y)
+```
+
+Dataset 2
+```{r}
+anscombe_data2 <-filter(anscombe2, anscombe2$data==2)
+mean(anscombe_data2$x)
+mean(anscombe_data2$y)
+sd(anscombe_data2$x)
+sd(anscombe_data2$y)
+cor(anscombe_data2$x, anscombe_data2$y)
+```
+Dataset 3
+
+```{r}
+anscombe_data3 <-filter(anscombe2, anscombe2$data==3)
+mean(anscombe_data3$x)
+mean(anscombe_data3$y)
+sd(anscombe_data3$x)
+sd(anscombe_data3$y)
+cor(anscombe_data3$x, anscombe_data3$y)
+```
+Dataset 4
+```{r}
+anscombe_data4 <-filter(anscombe2, anscombe2$data==4)
+mean(anscombe_data4$x)
+mean(anscombe_data4$y)
+sd(anscombe_data4$x)
+sd(anscombe_data4$y)
+cor(anscombe_data4$x, anscombe_data4$y)
+```
+
+
+Run a linear regression between x and y for each dataset.
+
+```{r}
+reg_anscombe1 <- lm(anscombe_data1$y ~ anscombe_data1$x)
+summary(reg_anscombe1)
+
+reg_anscombe2 <- lm(anscombe_data2$y ~ anscombe_data2$x)
+summary(reg_anscombe2)
+
+reg_anscombe3 <- lm(anscombe_data3$y ~ anscombe_data3$x)
+summary(reg_anscombe3)
+
+reg_anscombe4 <- lm(anscombe_data4$y ~ anscombe_data4$x)
+summary(reg_anscombe4)
+```
+
+How similar do you think that these datasets will look?
+ - Since the actual numbers in the dataset vary, I expected the mean and sd to vary a bit also, however, they do not and are the same for all four datasets. Instead the regression lines for all four datasets differ. 
+
+Create a scatter plot of each dataset and its linear regression fit. Hint: you can do this easily with facet_wrap.
+
+```{r}
+scatterplot_anscombe <- ggplot (anscombe2, aes(x, y))
+scatterplot_anscombe + 
+  geom_point() + 
+  stat_smooth(method = "lm", color = "purple", se = FALSE) + 
+  facet_wrap(~dataset) 
+```
+
+How do we make sense of these plots?
+ - The graphs above show that the data is disbursement of points is different in each dataset.
+
+###Section 5 - Research Project
+
+Describe your data. Do you have it in a form that you can load it into R? What variables does it include? What are their descriptions and types? Describe, in as precise terms as possible, the distribution of the outcome varaible you plan to use. If you have the data in hand, a histogram would be ideal; if you do not, give a verbal description of what you expect the distribution to look like. Be sure to indicate if the data are continuous or categorical.What challenges would your data pose for analysis by least squares regression? Be sure to discuss any potential violations of the assumptions of the GaussMarkov theorem, as well as any other complications or difficulties you see in modeling your data.
+
+- I will be extending my previous project that uses CMPS 2008 data to measure groups perceptions of Black racial equality and understand which measures other than race hold predictive power. I am using survey data. Right now, I am in the process of redesigning my model, checking for complications/difficulties, and checking CMPS 2016 data to see if both surveys ask the same questions or if there are different variables that measure the same thing. My alternative steps are to decide in which ways I would like to extend the project. Most of the variables I use are categorical (including my dependent variable). The dependent variable, black racial equality, was recoded as the belief that: "0" Blacks not have achieved racial equality and "1" Blacks have achieved racial equality. I am in the process of recoding it back to the original form: "1" Blacks have achieved racial equality, "2" Will soon achieve racial equality, "3" Will not achieve racial equality in my lifetime, and "4" Will never achieve racial equality.
